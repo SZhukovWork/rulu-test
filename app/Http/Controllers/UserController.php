@@ -7,6 +7,7 @@ use App\Http\Responses\ErrorResponse;
 use App\Http\Responses\GetAllUsersResponse;
 use App\Http\Responses\UserResponse;
 use App\Interfaces\User\DTO\CreateUserDTO;
+use App\Interfaces\User\errors\UserNotFoundException;
 use App\Interfaces\User\UserRepositoryInterface;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -39,11 +40,13 @@ class UserController extends Controller
     }
     public function getById(int $id): ErrorResponse|UserResponse
     {
-        $user = $this->userRepository->getById($id);
-        if($user){
+        try {
+            $user = $this->userRepository->getById($id);
             return new UserResponse(new UserResource($user));
         }
-        return new ErrorResponse("User not found", 404);
+        catch (UserNotFoundException $ex) {
+            return new ErrorResponse($ex->getMessage(), 404);
+        }
     }
     public function update(int $id, Request $request): JsonResponse
     {
@@ -64,10 +67,12 @@ class UserController extends Controller
         DB::beginTransaction();
         try{
             $user = $this->userRepository->update($createUserDTO,$id);
-
             DB::commit();
             return new UserResponse(new UserResource($user));
-        }catch(\Exception $ex){
+        } catch (UserNotFoundException $ex) {
+            return new ErrorResponse($ex->getMessage(), 404);
+        } catch(\Exception $ex){
+            DB::rollback();
             return new ErrorResponse($ex->getMessage(), 500);
         }
     }
@@ -90,19 +95,33 @@ class UserController extends Controller
         DB::beginTransaction();
         try{
             $user = $this->userRepository->create($createUserDTO);
-
             DB::commit();
             return new UserResponse(new UserResource($user));
         }catch(\Exception $ex){
+            DB::rollback();
             return new ErrorResponse($ex->getMessage(), 500);
         }
     }
-    public function delete(int $id): JsonResponse
+    public function delete(int $id): UserResponse|ErrorResponse
     {
-        $deleteCounts = $this->userRepository->delete($id);
-        if($deleteCounts == 0){
-            return new ErrorResponse("User by id: ".$id." not found", 404);
+        $user = $this->userRepository->getById($id);
+        if(!$user){
+            return new ErrorResponse("User not found", 404);
         }
+        DB::beginTransaction();
+        try{
+            $this->userRepository->delete($id);
+            DB::commit();
+            return new UserResponse(new UserResource($user));
+        }catch(\Exception $ex){
+            DB::rollback();
+            return new ErrorResponse($ex->getMessage(), 500);
+        }
+    }
+
+    public function deleteAll(): JsonResponse
+    {
+        $this->userRepository->delete(null);
         return response()->json(["success"=>true]);
     }
 }

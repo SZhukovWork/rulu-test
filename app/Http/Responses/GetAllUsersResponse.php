@@ -8,6 +8,8 @@ class GetAllUsersResponse extends BaseApiJsonResponse
 {
     public function __construct(AnonymousResourceCollection $data)
     {
-        parent::__construct($data);
+        parent::__construct([
+            "users" => $data
+        ]);
     }
 }
