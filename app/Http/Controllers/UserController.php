@@ -104,9 +104,10 @@ class UserController extends Controller
     }
     public function delete(int $id): UserResponse|ErrorResponse
     {
-        $user = $this->userRepository->getById($id);
-        if(!$user){
-            return new ErrorResponse("User not found", 404);
+        try {
+            $user = $this->userRepository->getById($id);
+        }catch (UserNotFoundException $ex) {
+            return new ErrorResponse($ex->getMessage(), 404);
         }
         DB::beginTransaction();
         try{
