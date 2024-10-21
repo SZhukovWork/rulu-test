@@ -14,7 +14,11 @@ class UserRepository implements UserRepositoryInterface
     }
 
     public function getById($id): ?User{
-        return User::find($id);
+        $user = User::find($id);
+        if(!$user){
+            throw new UserNotFoundException($id);
+        }
+        return $user;
     }
 
     public function create(CreateUserDTO $data){
@@ -27,7 +31,7 @@ class UserRepository implements UserRepositoryInterface
     public function update(CreateUserDTO $data, $id): User{
         $user = User::find($id);
         if(!$user){
-            throw new UserNotFoundException("User not found");
+            throw new UserNotFoundException($id);
         }
         $user->update((array)$data);
         return $user;
